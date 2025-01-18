@@ -33,7 +33,9 @@ services:
 
   #cadvisor
   cadvisor:
-    image: google/cadvisor:${CADVISOR_VERSION:-v0.25.0}
+    image:  gcr.io/cadvisor/cadvisor:latest
+    ports:
+      - "8080:8080"
     networks:
       - autoscale
     volumes:
