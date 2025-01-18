@@ -33,6 +33,6 @@ app.get('/cpu', (req, res) => {
     res.json({ primes: primes.length });
 });
 
-app.listen('127.0.0.1:' + process.env.APP_PORT || 3030, () => {
+app.listen('localhost:' + process.env.APP_PORT || 3030, () => {
     console.log('Server running on port 3000');
 });

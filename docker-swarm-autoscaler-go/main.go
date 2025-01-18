@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -21,7 +22,7 @@ const (
 	cpuPercentageUpperLimit = 85.0
 	cpuPercentageLowerLimit = 25.0
 	prometheusAPI           = "api/v1/query?query="
-	prometheusQuery         = `sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_swarm_task_name=~'.+'}[5m]))BY(container_label_com_docker_swarm_service_name,instance)*100`
+	prometheusQuery         = `sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_swarm_task_name=~'.+'}[1m]))BY(container_label_com_docker_swarm_service_name,instance)*100`
 )
 
 type PrometheusResponse struct {
@@ -54,11 +55,45 @@ func NewServiceAutoscaler(prometheusURL string, checkInterval time.Duration) (*S
 		prometheusURL: prometheusURL,
 		checkInterval: checkInterval,
 	}, nil
+
+}
+
+func createPrometheusClient() *http.Client {
+	// Create a custom dialer with Docker DNS settings
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+		Resolver: &net.Resolver{
+			PreferGo: true,
+			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+				return net.Dial("udp", "127.0.0.11:53")
+			},
+		},
+	}
+
+	// Create transport with the custom dialer
+	transport := &http.Transport{
+		DialContext:           dialer.DialContext,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	// Create client with the custom transport
+	return &http.Client{
+		Transport: transport,
+		Timeout:   30 * time.Second,
+	}
 }
 
 func (sa *ServiceAutoscaler) getPrometheusMetrics() (*PrometheusResponse, error) {
 	queryURL := fmt.Sprintf("%s/%s%s", sa.prometheusURL, prometheusAPI, url.QueryEscape(prometheusQuery))
-	resp, err := http.Get(queryURL)
+
+	// Use the custom client
+	client := createPrometheusClient()
+	resp, err := client.Get(queryURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get prometheus metrics: %v", err)
 	}
@@ -174,6 +209,8 @@ func (sa *ServiceAutoscaler) run() {
 
 func main() {
 	prometheusURL := os.Getenv("PROMETHEUS_URL")
+
+	fmt.Println(prometheusURL)
 	if prometheusURL == "" {
 		log.Fatal("PROMETHEUS_URL environment variable is required")
 	}

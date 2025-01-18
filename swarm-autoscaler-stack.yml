@@ -24,11 +24,12 @@ services:
           - node.role == manager
       resources:
         limits:
-          cpus: '0.10'
+          cpus: "0.10"
           memory: 128M
         reservations:
-          cpus: '0.10'
+          cpus: "0.10"
           memory: 64M
+
   cadvisor:
     image: google/cadvisor:${CADVISOR_VERSION:-v0.25.0}
     networks:
@@ -44,20 +45,27 @@ services:
       mode: global
       resources:
         limits:
-          cpus: '0.10'
+          cpus: "0.10"
           memory: 128M
         reservations:
-          cpus: '0.10'
+          cpus: "0.10"
           memory: 64M
 
   prometheus:
     image: prom/prometheus:v2.12.0
     networks:
       - autoscale
-    command: ["--storage.tsdb.retention.size=1GB", "--config.file=/etc/prometheus/prometheus.yml", "--web.console.libraries=/etc/prometheus/console_libraries", "--web.console.templates=/etc/prometheus/consoles", "--web.enable-lifecycle"]
+    command:
+      [
+        "--storage.tsdb.retention.size=1GB",
+        "--config.file=/etc/prometheus/prometheus.yml",
+        "--web.console.libraries=/etc/prometheus/console_libraries",
+        "--web.console.templates=/etc/prometheus/consoles",
+        "--web.enable-lifecycle",
+      ]
     configs:
-       - source: prometheus_config
-         target: /etc/prometheus/prometheus.yml
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
     deploy:
       mode: replicated
       replicas: 1
@@ -66,8 +74,8 @@ services:
           - node.role == manager
       resources:
         limits:
-          cpus: '0.50'
+          cpus: "0.50"
           memory: 1024M
         reservations:
-          cpus: '0.50'
+          cpus: "0.50"
           memory: 128M
